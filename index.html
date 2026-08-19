@@ -1947,8 +1947,14 @@ document.getElementById('shEndConfirm').onclick = ()=>{
 
     shifts.unshift(currentShift);
     saveShifts(shifts);
-    if(actualCash > 0){
-      addTreasuryTransaction('shift_close', actualCash, 'إيداع ختام وردية' + (currentShift.cashierName? (' — ' + currentShift.cashierName):''), currentShift.id);
+    // مبيعات النقدي بقت بتتسجل في الخزينة أول ما تحصل (لحظة كل فاتورة)،
+    // فهنا وقت إقفال الوردية بنرجّع بس النقدي الافتتاحي + أي فرق (زيادة أو عجز) ظهر عند العدّ،
+    // عشان منضاعفش قيمة مبيعات النقدي في الخزينة.
+    const settlement = currentShift.openingCash + currentShift.diff;
+    if(settlement > 0){
+      addTreasuryTransaction('shift_close', settlement, 'إيداع ختام وردية — إرجاع النقدي الافتتاحي' + (currentShift.diff !== 0 ? (' (شاملة فرق ' + money(currentShift.diff) + ')') : '') + (currentShift.cashierName? (' — ' + currentShift.cashierName):''), currentShift.id);
+    } else if(settlement < 0){
+      addTreasuryTransaction('shift_close_deficit', Math.abs(settlement), 'عجز نقدي عند إقفال وردية' + (currentShift.cashierName? (' — ' + currentShift.cashierName):''), currentShift.id);
     }
     currentShift = null;
     saveCurrentShift(null);
@@ -2038,8 +2044,10 @@ const TREASURY_TYPES = {
   expense:    {label:'مصروف',              dir:'out', manual:true},
   shift_open: {label:'سحب لبدء وردية',      dir:'out', manual:false},
   shift_close:{label:'إيداع ختام وردية',    dir:'in',  manual:false},
+  shift_close_deficit:{label:'عجز نقدي عند إقفال وردية', dir:'out', manual:false},
   wallet_sale:{label:'بيع بمحفظة إلكترونية',dir:'in',  manual:false},
-  instapay_sale:{label:'بيع بانستاباي',    dir:'in',  manual:false}
+  instapay_sale:{label:'بيع بانستاباي',    dir:'in',  manual:false},
+  cash_sale:  {label:'بيع نقدي',            dir:'in',  manual:false}
 };
 function treasuryBalance(){
   return treasury.reduce((sum,t)=> sum + (TREASURY_TYPES[t.type].dir==='in' ? t.amount : -t.amount), 0);
@@ -3013,6 +3021,10 @@ document.getElementById('checkoutBtn').onclick = ()=>{
   }
   if(sale.payment === 'انستاباي' && sale.total > 0){
     addTreasuryTransaction('instapay_sale', sale.total, 'بيع بانستاباي — ' + sale.customer, sale.shiftId, sale.id);
+    renderTreasury();
+  }
+  if(sale.payment === 'نقدي' && sale.total > 0){
+    addTreasuryTransaction('cash_sale', sale.total, 'بيع نقدي — ' + sale.customer, sale.shiftId, sale.id);
     renderTreasury();
   }
   const lowStockNames = new Set();
