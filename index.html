@@ -574,6 +574,7 @@
     <button data-tab="services"><span class="ic">🧴</span> الخدمات</button>
     <button data-tab="products"><span class="ic">🛍</span> المنتجات <span id="lowStockBadge" style="display:none; background:var(--red); color:#fff; border-radius:20px; font-size:11px; padding:1px 7px; margin-inline-start:4px; font-family:'Tajawal',sans-serif; font-weight:700;">0</span></button>
     <button data-tab="orders"><span class="ic">📋</span> الطلبيات <span id="ordersBadge" style="display:none; background:var(--gold); color:#fff; border-radius:20px; font-size:11px; padding:1px 7px; margin-inline-start:4px; font-family:'Tajawal',sans-serif; font-weight:700;">0</span></button>
+    <button data-tab="expenses"><span class="ic">🧾</span> المصاريف</button>
     <button data-tab="staff"><span class="ic">👤</span> الحلاقين</button>
     <button data-tab="reports"><span class="ic">📊</span> التقارير</button>
     <button data-tab="shifts"><span class="ic">⏱</span> الورديات</button>
@@ -924,6 +925,15 @@
           <button class="btn danger small" id="clearAllSales" style="width:100%; margin-top:16px;">حذف كل سجل المبيعات</button>
         </div>
       </div>
+
+      <div class="card">
+        <div class="section-title">تقرير المصاريف (المسجلة من الكاشير أو الخزينة) — إجمالي: <span id="reportExpenseTotal">0</span></div>
+        <div class="treasury-row head" style="grid-template-columns:150px 1fr 130px;">
+          <span>التاريخ</span><span>البيان</span><span>المبلغ</span>
+        </div>
+        <div class="treasury-list" id="reportExpenseList"></div>
+        <div class="empty-note" id="reportExpenseEmptyNote" style="display:none;">لا توجد مصاريف مسجلة في هذه الفترة</div>
+      </div>
     </section>
 
     <!-- ================= SHIFTS VIEW ================= -->
@@ -939,6 +949,37 @@
         </div>
         <div class="shifts-list" id="shiftsList"></div>
         <div class="empty-note" id="shiftsEmptyNote" style="display:none;">لا توجد ورديات مسجلة بعد</div>
+      </div>
+    </section>
+
+    <!-- ================= EXPENSES VIEW (Cashier) ================= -->
+    <section class="view" id="view-expenses">
+      <div class="page-head">
+        <div><h1>المصاريف</h1><div class="sub">تسجيل أي مصروف نقدي بيطلع من الخزينة أثناء الوردية (مستلزمات، صيانة، توصيل...)</div></div>
+      </div>
+
+      <div class="two-col">
+        <div class="card" style="max-width:420px;">
+          <div class="section-title">تسجيل مصروف جديد</div>
+          <div class="field">
+            <label>المبلغ (جنيه)</label>
+            <input id="expenseAmountInput" type="number" min="0" placeholder="0">
+          </div>
+          <div class="field">
+            <label>البيان / السبب</label>
+            <input id="expenseNoteInput" placeholder="مثال: شراء مستلزمات صالون">
+          </div>
+          <button class="btn" id="expenseAddBtn">تسجيل المصروف</button>
+        </div>
+
+        <div class="card">
+          <div class="section-title">مصاريف اليوم (<span id="expenseTodayCount">0</span>) — إجمالي: <span id="expenseTodayTotal">0</span></div>
+          <div class="treasury-row head" style="grid-template-columns:150px 1fr 130px;">
+            <span>الوقت</span><span>البيان</span><span>المبلغ</span>
+          </div>
+          <div class="treasury-list" id="expenseList"></div>
+          <div class="empty-note" id="expenseEmptyNote" style="display:none;">لا توجد مصاريف مسجلة اليوم</div>
+        </div>
       </div>
     </section>
 
@@ -1205,7 +1246,9 @@
         <div class="bd-stat"><div class="val" id="shEndCash">0</div><div class="lbl">مبيعات نقدي</div></div>
       </div>
       <div class="totals-row"><span>نقدي افتتاحي</span><span id="shEndOpening">0</span></div>
-      <div class="totals-row"><span>مبيعات بالبطاقة / المحفظة</span><span id="shEndNonCash">0</span></div>
+      <div class="totals-row"><span>مبيعات بالبطاقة</span><span id="shEndCard">0</span></div>
+      <div class="totals-row"><span>مبيعات بمحفظة إلكترونية</span><span id="shEndWallet">0</span></div>
+      <div class="totals-row"><span>مبيعات بانستاباي</span><span id="shEndInstapay">0</span></div>
       <div class="totals-row grand" style="font-size:16px;"><span>النقدي المتوقع بالدرج</span><span id="shEndExpected">0</span></div>
     </div>
     <div class="field" style="margin-top:14px; margin-bottom:0;">
@@ -1289,13 +1332,37 @@
       <tr><td>عدد الفواتير</td><td id="shpCount">0</td></tr>
       <tr><td>إجمالي المبيعات</td><td id="shpTotal">0</td></tr>
       <tr><td>مبيعات نقدي</td><td id="shpCash">0</td></tr>
-      <tr><td>مبيعات بالبطاقة / المحفظة</td><td id="shpNonCash">0</td></tr>
+      <tr><td>مبيعات بالبطاقة</td><td id="shpCard">0</td></tr>
+      <tr><td>مبيعات بمحفظة إلكترونية</td><td id="shpWallet">0</td></tr>
+      <tr><td>مبيعات بانستاباي</td><td id="shpInstapay">0</td></tr>
       <tr><td>نقدي افتتاحي</td><td id="shpOpening">0</td></tr>
       <tr><td>النقدي المتوقع بالدرج</td><td id="shpExpected">0</td></tr>
       <tr><td>النقدي الفعلي بالدرج</td><td id="shpActual">0</td></tr>
       <tr><td>الفرق</td><td id="shpDiff">0</td></tr>
     </tbody>
   </table>
+
+  <div class="st-heading" style="font-size:14px;">كل ما هو داخل خلال الوردية (إيداعات)</div>
+  <table class="st-table">
+    <thead>
+      <tr><th>الوقت</th><th>النوع</th><th>البيان</th><th>المبلغ</th></tr>
+    </thead>
+    <tbody id="shpInBody"></tbody>
+  </table>
+  <div class="st-summary" style="margin-bottom:14px;">
+    <span>إجمالي الداخل</span><span id="shpInTotal">0</span>
+  </div>
+
+  <div class="st-heading" style="font-size:14px;">كل ما هو خارج خلال الوردية (مسحوبات ومصاريف)</div>
+  <table class="st-table">
+    <thead>
+      <tr><th>الوقت</th><th>النوع</th><th>البيان</th><th>المبلغ</th></tr>
+    </thead>
+    <tbody id="shpOutBody"></tbody>
+  </table>
+  <div class="st-summary">
+    <span>إجمالي الخارج</span><span id="shpOutTotal">0</span>
+  </div>
 </div>
 
 <!-- Print barber statement (كشف حساب) template -->
@@ -1923,14 +1990,18 @@ function openEndShiftModal(){
   const mine = getShiftSales(currentShift.id);
   const total = mine.reduce((a,s)=>a+s.total,0);
   const cashTotal = mine.filter(s=>s.payment==='نقدي').reduce((a,s)=>a+s.total,0);
-  const nonCashTotal = total - cashTotal;
+  const cardTotal = mine.filter(s=>s.payment==='بطاقة').reduce((a,s)=>a+s.total,0);
+  const walletTotal = mine.filter(s=>s.payment==='محفظة إلكترونية').reduce((a,s)=>a+s.total,0);
+  const instapayTotal = mine.filter(s=>s.payment==='انستاباي').reduce((a,s)=>a+s.total,0);
   const expected = currentShift.openingCash + cashTotal;
 
   document.getElementById('shEndCount').textContent = mine.length;
   document.getElementById('shEndTotal').textContent = money(total);
   document.getElementById('shEndCash').textContent = money(cashTotal);
   document.getElementById('shEndOpening').textContent = money(currentShift.openingCash);
-  document.getElementById('shEndNonCash').textContent = money(nonCashTotal);
+  document.getElementById('shEndCard').textContent = money(cardTotal);
+  document.getElementById('shEndWallet').textContent = money(walletTotal);
+  document.getElementById('shEndInstapay').textContent = money(instapayTotal);
   document.getElementById('shEndExpected').textContent = money(expected);
   document.getElementById('shEndActualCash').value = expected;
   document.getElementById('endShiftOverlay').classList.add('show');
@@ -2030,6 +2101,11 @@ function renderShiftsList(){
 function printShiftReport(shiftId){
   const sh = shifts.find(s=>s.id===shiftId);
   if(!sh) return;
+  const mine = getShiftSales(sh.id);
+  const cardTotal = mine.filter(s=>s.payment==='بطاقة').reduce((a,s)=>a+s.total,0);
+  const walletTotal = mine.filter(s=>s.payment==='محفظة إلكترونية').reduce((a,s)=>a+s.total,0);
+  const instapayTotal = mine.filter(s=>s.payment==='انستاباي').reduce((a,s)=>a+s.total,0);
+
   document.getElementById('shpShopName').textContent = settings.shopName || 'صالون الرجال';
   document.getElementById('shpShopInfo').textContent = [settings.phone, settings.address].filter(Boolean).join(' — ');
   document.getElementById('shpCashier').textContent = sh.cashierName ? ('الكاشير: ' + sh.cashierName) : '';
@@ -2038,11 +2114,39 @@ function printShiftReport(shiftId){
   document.getElementById('shpCount').textContent = sh.invoiceCount;
   document.getElementById('shpTotal').textContent = money(sh.totalSales);
   document.getElementById('shpCash').textContent = money(sh.cashSales);
-  document.getElementById('shpNonCash').textContent = money(sh.nonCashSales);
+  document.getElementById('shpCard').textContent = money(cardTotal);
+  document.getElementById('shpWallet').textContent = money(walletTotal);
+  document.getElementById('shpInstapay').textContent = money(instapayTotal);
   document.getElementById('shpOpening').textContent = money(sh.openingCash);
   document.getElementById('shpExpected').textContent = money(sh.expectedCash);
   document.getElementById('shpActual').textContent = money(sh.closingCash);
   document.getElementById('shpDiff').textContent = (sh.diff > 0 ? '+' : '') + money(sh.diff);
+
+  const shiftTx = treasury.filter(t=> t.shiftId === sh.id).sort((a,b)=> new Date(a.date) - new Date(b.date));
+  const inTx = shiftTx.filter(t=> TREASURY_TYPES[t.type] && TREASURY_TYPES[t.type].dir === 'in');
+  const outTx = shiftTx.filter(t=> TREASURY_TYPES[t.type] && TREASURY_TYPES[t.type].dir === 'out');
+
+  const inBody = document.getElementById('shpInBody');
+  inBody.innerHTML = inTx.length ? inTx.map(t=>`
+    <tr>
+      <td>${formatDateTime(t.date)}</td>
+      <td>${TREASURY_TYPES[t.type].label}</td>
+      <td>${escapeHtml(t.note || '—')}</td>
+      <td>${money(t.amount)}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="4">لا توجد حركات داخلة</td></tr>';
+  document.getElementById('shpInTotal').textContent = money(inTx.reduce((a,t)=>a+t.amount,0));
+
+  const outBody = document.getElementById('shpOutBody');
+  outBody.innerHTML = outTx.length ? outTx.map(t=>`
+    <tr>
+      <td>${formatDateTime(t.date)}</td>
+      <td>${TREASURY_TYPES[t.type].label}</td>
+      <td>${escapeHtml(t.note || '—')}</td>
+      <td>${money(t.amount)}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="4">لا توجد حركات خارجة</td></tr>';
+  document.getElementById('shpOutTotal').textContent = money(outTx.reduce((a,t)=>a+t.amount,0));
 
   document.body.classList.add('printing-shift');
   window.print();
@@ -2061,7 +2165,8 @@ const TREASURY_TYPES = {
   shift_close_deficit:{label:'عجز نقدي عند إقفال وردية', dir:'out', manual:false},
   wallet_sale:{label:'بيع بمحفظة إلكترونية',dir:'in',  manual:false},
   instapay_sale:{label:'بيع بانستاباي',    dir:'in',  manual:false},
-  cash_sale:  {label:'بيع نقدي',            dir:'in',  manual:false}
+  cash_sale:  {label:'بيع نقدي',            dir:'in',  manual:false},
+  card_sale:  {label:'بيع بالبطاقة',        dir:'in',  manual:false}
 };
 function treasuryBalance(){
   return treasury.reduce((sum,t)=> sum + (TREASURY_TYPES[t.type].dir==='in' ? t.amount : -t.amount), 0);
@@ -2220,6 +2325,44 @@ document.getElementById('treasuryAddBtn').onclick = ()=>{
   renderTreasury();
   logActivity('treasury', TREASURY_TYPES[type].label, note ? note : (money(amount) + ' جنيه'));
   toast('تم تسجيل الحركة ✓');
+};
+
+/* ================= Expenses (Cashier) ================= */
+function renderExpenses(){
+  const list = document.getElementById('expenseList');
+  const emptyNote = document.getElementById('expenseEmptyNote');
+  if(!list) return;
+  const today = todayStr();
+  const todays = treasury
+    .filter(t=> t.type==='expense' && (t.date||'').slice(0,10)===today)
+    .sort((a,b)=> new Date(b.date) - new Date(a.date));
+  document.getElementById('expenseTodayCount').textContent = todays.length;
+  document.getElementById('expenseTodayTotal').textContent = money(todays.reduce((a,t)=>a+t.amount,0));
+  if(todays.length === 0){
+    list.innerHTML = '';
+    emptyNote.style.display = 'block';
+    return;
+  }
+  emptyNote.style.display = 'none';
+  list.innerHTML = todays.map(t=>`
+    <div class="treasury-row" style="grid-template-columns:150px 1fr 130px;" data-id="${t.id}">
+      <span>${formatDateTime(t.date)}</span>
+      <span>${escapeHtml(t.note || '—')}</span>
+      <span class="amt-neg">− ${money(t.amount)}</span>
+    </div>
+  `).join('');
+}
+document.getElementById('expenseAddBtn').onclick = ()=>{
+  const amount = Number(document.getElementById('expenseAmountInput').value) || 0;
+  const note = document.getElementById('expenseNoteInput').value.trim();
+  if(amount <= 0){ toast('اكتب مبلغ أكبر من صفر'); return; }
+  addTreasuryTransaction('expense', amount, note, currentShift ? currentShift.id : null);
+  document.getElementById('expenseAmountInput').value = '';
+  document.getElementById('expenseNoteInput').value = '';
+  renderExpenses();
+  renderTreasury();
+  logActivity('treasury', 'مصروف', note ? note : (money(amount) + ' جنيه'));
+  toast('تم تسجيل المصروف ✓');
 };
 
 /* ================= Activity Log ================= */
@@ -2523,6 +2666,7 @@ function switchToTab(tab){
   if(tab === 'shifts') renderShiftsList();
   if(tab === 'chairs') renderChairsBoard();
   if(tab === 'treasury') renderTreasury();
+  if(tab === 'expenses') renderExpenses();
   if(tab === 'orders') renderOrdersTable();
   if(tab === 'activity') renderActivityLog();
 }
@@ -3039,6 +3183,10 @@ document.getElementById('checkoutBtn').onclick = ()=>{
   }
   if(sale.payment === 'نقدي' && sale.total > 0){
     addTreasuryTransaction('cash_sale', sale.total, 'بيع نقدي — ' + sale.customer, sale.shiftId, sale.id);
+    renderTreasury();
+  }
+  if(sale.payment === 'بطاقة' && sale.total > 0){
+    addTreasuryTransaction('card_sale', sale.total, 'بيع بالبطاقة — ' + sale.customer, sale.shiftId, sale.id);
     renderTreasury();
   }
   const lowStockNames = new Set();
@@ -3922,6 +4070,29 @@ function renderBarberStatsBox(filtered){
   }).join('');
 }
 
+function renderExpensesReport(from, to){
+  const listEl = document.getElementById('reportExpenseList');
+  const emptyNote = document.getElementById('reportExpenseEmptyNote');
+  if(!listEl) return;
+  let expenses = treasury.filter(t=> t.type==='expense');
+  if(from) expenses = expenses.filter(t=> (t.date||'').slice(0,10) >= from);
+  if(to) expenses = expenses.filter(t=> (t.date||'').slice(0,10) <= to);
+  expenses = expenses.sort((a,b)=> new Date(b.date) - new Date(a.date));
+  document.getElementById('reportExpenseTotal').textContent = money(expenses.reduce((a,t)=>a+t.amount,0));
+  if(expenses.length === 0){
+    listEl.innerHTML = '';
+    emptyNote.style.display = 'block';
+    return;
+  }
+  emptyNote.style.display = 'none';
+  listEl.innerHTML = expenses.map(t=>`
+    <div class="treasury-row" style="grid-template-columns:150px 1fr 130px;" data-id="${t.id}">
+      <span>${formatDateTime(t.date)}</span>
+      <span>${escapeHtml(t.note || '—')}</span>
+      <span class="amt-neg">− ${money(t.amount)}</span>
+    </div>
+  `).join('');
+}
 function renderReports(){
   let filtered = sales;
   const from = document.getElementById('filterFrom').value;
@@ -3938,6 +4109,7 @@ function renderReports(){
   renderTrendChart();
   renderTopServicesBox(filtered);
   renderBarberStatsBox(filtered);
+  renderExpensesReport(from, to);
 
   const body = document.getElementById('salesTableBody');
   const emptyNote = document.getElementById('salesEmptyNote');
@@ -4166,6 +4338,7 @@ renderReports();
 updateShiftUI();
 renderShiftsList();
 renderTreasury();
+renderExpenses();
 if(isLoggedIn()) showApp(); else showLogin();
 </script>
 </body>
