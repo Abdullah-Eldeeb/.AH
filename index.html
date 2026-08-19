@@ -1426,17 +1426,22 @@ function cloudSyncFail(msg, err){
 // فرق بيحدّث البيانات ويعيد تحميل الصفحة تلقائياً.
 async function cloudPullInBackground(){
   if(!cloudSyncEnabled) return;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(()=> controller.abort(), 8000);
   try{
-    const res = await fetch(SUPABASE_URL + '/rest/v1/kv_store?select=key,value', {
+    // بنستخدم Promise.race بدل AbortController/AbortSignal عشان الـ timeout،
+    // لأن بعض بيئات المعاينة (زي معاينة Artifacts في Claude.ai) بتمرر طلبات
+    // الشبكة بـ postMessage، و AbortSignal مش قابل للنسخ بالطريقة دي فبيرمي
+    // "DataCloneError". الطريقة دي بتدّي نفس نتيجة "استسلم بعد 8 ثواني"
+    // من غير ما تعتمد على AbortSignal خالص.
+    const fetchPromise = fetch(SUPABASE_URL + '/rest/v1/kv_store?select=key,value', {
       headers:{
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
-      },
-      signal: controller.signal
+      }
     });
-    clearTimeout(timeoutId);
+    const timeoutPromise = new Promise((_, reject)=>{
+      setTimeout(()=> reject(Object.assign(new Error('Cloud pull timed out'), {name:'TimeoutError'})), 8000);
+    });
+    const res = await Promise.race([fetchPromise, timeoutPromise]);
     if(!res.ok){
       if(res.status === 404 || res.status === 400){
         cloudSyncFail('جدول kv_store مش موجود في Supabase — لازم تشغّل كود إنشاء الجدول أولاً');
@@ -1474,8 +1479,7 @@ async function cloudPullInBackground(){
       setTimeout(()=> window.location.reload(), 900);
     }
   }catch(e){
-    clearTimeout(timeoutId);
-    if(e.name === 'AbortError'){
+    if(e.name === 'TimeoutError'){
       cloudSyncFail('الاتصال بالسحابة بطيء جداً — هيتم الاعتماد على النسخة المحلية دلوقتي');
     } else {
       cloudSyncFail('تعذر الاتصال بالسحابة — هيتم الاعتماد على النسخة المحلية دلوقتي', e);
@@ -1485,6 +1489,13 @@ async function cloudPullInBackground(){
 }
 if(cloudSyncEnabled){
   window.addEventListener('load', ()=> setTimeout(cloudPullInBackground, 300));
+  // خط دفاع تاني: حتى لو Realtime بتاع Supabase مش شغّال (السطر
+  // "alter publication supabase_realtime add table kv_store" ما اتنفذش على
+  // المشروع) أو فاتت حدث لأي سبب، السحب الدوري ده بيضمن إن أي جهاز (زي
+  // شاشة المدير) هيلحق أي تعديل حصل من جهاز تاني (زي إقفال وردية من
+  // الكاشير) خلال ثواني قليلة بدل ما يفضل عالق على بيانات قديمة لحد ما
+  // حد يعمل Refresh يدوي.
+  setInterval(cloudPullInBackground, 20000);
 }
 
 const _origSetItem = localStorage.setItem.bind(localStorage);
@@ -1675,8 +1686,11 @@ function loadCurrentShift(){
   return raw ? JSON.parse(raw) : null;
 }
 function saveCurrentShift(obj){
-  if(obj) localStorage.setItem(LS_CURRENT_SHIFT, JSON.stringify(obj));
-  else localStorage.removeItem(LS_CURRENT_SHIFT);
+  // مهم: لازم نستخدم setItem حتى لما مفيش وردية حالية (obj=null)، مش removeItem،
+  // عشان آلية المزامنة مع السحابة بترصد بس تغييرات setItem. لو استخدمنا removeItem
+  // هنا، "إنهاء الوردية" هيتعمل محلياً بس مش هيتبعت للسحابة، وأول ما تدخل تاني
+  // (أو من جهاز تاني) هتترجّع الوردية القديمة من السحابة وكأنها لسه مفتوحة.
+  localStorage.setItem(LS_CURRENT_SHIFT, JSON.stringify(obj));
 }
 function loadAuth(){
   const raw = localStorage.getItem(LS_AUTH);
